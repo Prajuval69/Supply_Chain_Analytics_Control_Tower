@@ -1,0 +1,44 @@
+[
+  {
+    "table": "sales_orders",
+    "defect": "duplicate",
+    "column": "status",
+    "injected_rows": 1
+  },
+  {
+    "table": "order_lines",
+    "defect": "duplicate",
+    "column": "ordered_quantity",
+    "injected_rows": 1
+  },
+  {
+    "table": "customers",
+    "defect": "missing_id",
+    "column": "customer_id",
+    "injected_rows": 1
+  },
+  {
+    "table": "order_lines",
+    "defect": "invalid_reference",
+    "column": "product_id",
+    "injected_rows": 1
+  },
+  {
+    "table": "inventory",
+    "defect": "negative_inventory",
+    "column": "on_hand_quantity",
+    "injected_rows": 1
+  },
+  {
+    "table": "sales_orders",
+    "defect": "invalid_date",
+    "column": "order_date",
+    "injected_rows": 1
+  },
+  {
+    "table": "products",
+    "defect": "category_case_whitespace",
+    "column": "category",
+    "injected_rows": 20
+  }
+]

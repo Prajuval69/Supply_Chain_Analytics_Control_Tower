@@ -1,0 +1,7 @@
+{
+  "seed": 42,
+  "start_date": "2024-04-01",
+  "as_of": "2026-09-30",
+  "months": 30,
+  "synthetic_only": true
+}

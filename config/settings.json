@@ -1,0 +1,20 @@
+{
+  "seed": 42,
+  "start_date": "2024-04-01",
+  "months": 30,
+  "customers": 500,
+  "products": 200,
+  "suppliers": 100,
+  "carriers": 15,
+  "orders_per_month": 500,
+  "purchase_orders_per_month": 220,
+  "forecast_horizon": 3,
+  "stockout_threshold": 0,
+  "excess_days": 90,
+  "low_supplier_otif": 0.75,
+  "volatility_threshold": 0.45,
+  "production_shortfall_threshold": 0.90,
+  "delay_days_threshold": 3,
+  "backlog_quantity_threshold": 30
+}
+

@@ -1,0 +1,7 @@
+{
+  "name": "PackRight Control Tower",
+  "dataColors": ["#125B78", "#168A7F", "#D89528", "#C84C4C", "#76629D", "#557582"],
+  "background": "#F5F7FA",
+  "foreground": "#20313A",
+  "tableAccent": "#125B78"
+}

@@ -1,0 +1,82 @@
+// Create these measures individually in Power BI. Percent fields store 0..1.
+// Use imported fact/aggregate table names from POWER_BI_GUIDE.md.
+Total Demand = SUM(fact_sales_order[ordered_quantity])
+Fulfilled Quantity = SUM(fact_sales_order[fulfilled_quantity])
+Backlog Quantity = SUM(fact_sales_order[backlog_quantity])
+Order Count = DISTINCTCOUNT(fact_sales_order[order_id])
+Fulfilled Orders = CALCULATE([Order Count], fact_sales_order[status] = "Fulfilled")
+Open Orders = [Order Count] - [Fulfilled Orders]
+Fulfillment Rate = DIVIDE([Fulfilled Orders], [Order Count])
+Order Fill Rate = DIVIDE([Fulfilled Quantity], [Total Demand])
+Overdue Orders =
+VAR AsOf = MAX(executive_kpis[as_of])
+RETURN CALCULATE(DISTINCTCOUNT(fact_sales_order[order_id]),
+    fact_sales_order[status] = "Open", fact_sales_order[required_date] < AsOf)
+
+Previous Month Demand = CALCULATE([Total Demand], DATEADD(dim_date[date], -1, MONTH))
+Demand Growth = DIVIDE([Total Demand] - [Previous Month Demand], [Previous Month Demand])
+Monthly Demand Volatility =
+VAR AsOf = MAX(executive_kpis[as_of])
+VAR Months = SUMMARIZE(FILTER(dim_date, dim_date[date] <= AsOf), dim_date[month_start], "Units", COALESCE([Total Demand], 0))
+RETURN IF(COUNTROWS(Months) >= 2, DIVIDE(STDEVX.S(Months, [Units]), AVERAGEX(Months, [Units])))
+
+Inventory Units = SUM(fact_inventory[on_hand_quantity])
+Current Inventory Units =
+VAR AsOf = MAX(executive_kpis[as_of])
+RETURN CALCULATE([Inventory Units], REMOVEFILTERS(dim_date), fact_inventory[snapshot_date] = AsOf)
+Inventory Value = SUMX(fact_inventory,
+    fact_inventory[on_hand_quantity] * RELATED(dim_product[standard_cost]))
+Current Inventory Value =
+VAR AsOf = MAX(executive_kpis[as_of])
+RETURN CALCULATE([Inventory Value], REMOVEFILTERS(dim_date), fact_inventory[snapshot_date] = AsOf)
+Average Inventory Units = AVERAGEX(VALUES(fact_inventory[snapshot_date]), [Inventory Units])
+Average Inventory Value = AVERAGEX(VALUES(fact_inventory[snapshot_date]), [Inventory Value])
+Synthetic COGS Proxy = SUMX(fact_sales_order,
+    fact_sales_order[fulfilled_quantity] * RELATED(dim_product[standard_cost]))
+Inventory Turnover = DIVIDE([Synthetic COGS Proxy], [Average Inventory Value])
+History Days =
+VAR FirstSnapshot = MINX(ALL(fact_inventory), fact_inventory[snapshot_date])
+VAR FirstDay = DATE(YEAR(FirstSnapshot), MONTH(FirstSnapshot), 1)
+RETURN DATEDIFF(FirstDay, MAX(executive_kpis[as_of]), DAY) + 1
+// These snapshot measures remove date filters so their denominator matches history.
+Average Daily Demand Snapshot = DIVIDE(CALCULATE([Total Demand], REMOVEFILTERS(dim_date)), [History Days])
+Days Of Inventory Snapshot = DIVIDE(
+    CALCULATE([Average Inventory Units], REMOVEFILTERS(dim_date)), [Average Daily Demand Snapshot])
+Current Days Of Inventory Snapshot = DIVIDE([Current Inventory Units], [Average Daily Demand Snapshot])
+Historical Stockout Snapshots = COUNTROWS(FILTER(fact_inventory, fact_inventory[on_hand_quantity] <= 0))
+
+Supplier Deliveries = COUNTROWS(fact_supplier_delivery)
+Supplier OTIF = DIVIDE(SUM(fact_supplier_delivery[otif]), [Supplier Deliveries])
+Supplier Fill Rate = DIVIDE(SUM(fact_supplier_delivery[delivered_quantity]), SUM(fact_supplier_delivery[ordered_quantity]))
+Supplier Average Lead Time = AVERAGE(fact_supplier_delivery[lead_time_days])
+Supplier Lead Time Variance = IF([Supplier Deliveries] >= 2, VAR.S(fact_supplier_delivery[lead_time_days]))
+Supplier Late Rate = DIVIDE(COUNTROWS(FILTER(fact_supplier_delivery, fact_supplier_delivery[delay_days] > 0)), [Supplier Deliveries])
+
+Shipment Count = COUNTROWS(fact_shipment)
+Logistics OTIF = DIVIDE(SUM(fact_shipment[otif]), [Shipment Count])
+Shipment Fill Rate = DIVIDE(SUM(fact_shipment[delivered_quantity]), SUM(fact_shipment[ordered_quantity]))
+Average Delivery Delay = AVERAGE(fact_shipment[delay_days])
+Late Shipment Rate = DIVIDE(COUNTROWS(FILTER(fact_shipment, fact_shipment[delay_days] > 0)), [Shipment Count])
+Production Units = SUM(fact_production[produced_quantity])
+Production Attainment = DIVIDE([Production Units], SUM(fact_production[planned_quantity]))
+
+Forecast Units = SUM(forecast_demand[prediction])
+Next Month Forecast Units = CALCULATE([Forecast Units], forecast_demand[horizon] = 1)
+Allocated Forecast Units = SUM(projected_inventory[forecast_demand])
+Projected Inventory Units = IF(HASONEVALUE(projected_inventory[horizon]), SUM(projected_inventory[projected_ending_inventory]))
+Replenishment Units = IF(HASONEVALUE(projected_inventory[horizon]), SUM(projected_inventory[replenishment_quantity]))
+Stockout Risk Pairs = COUNTROWS(SUMMARIZE(
+    FILTER(projected_inventory, projected_inventory[stockout_flag] = 1),
+    projected_inventory[product_id], projected_inventory[facility_id]))
+Excess Risk Pairs = COUNTROWS(SUMMARIZE(
+    FILTER(projected_inventory, projected_inventory[excess_inventory_flag] = 1),
+    projected_inventory[product_id], projected_inventory[facility_id]))
+Projected Stockout Date = MIN(projected_inventory[stockout_date])
+Test MAE = AVERAGEX(forecast_test, ABS(forecast_test[actual] - forecast_test[prediction]))
+Test RMSE = SQRT(AVERAGEX(forecast_test, POWER(forecast_test[actual] - forecast_test[prediction], 2)))
+Test MAPE Percent = 100 * AVERAGEX(FILTER(forecast_test, forecast_test[actual] <> 0),
+    DIVIDE(ABS(forecast_test[actual] - forecast_test[prediction]), ABS(forecast_test[actual])))
+
+Exception Count = COUNTROWS(supply_chain_exceptions)
+Open Exceptions = CALCULATE([Exception Count], supply_chain_exceptions[status] IN {"Open", "Investigating"})
+Critical Exceptions = CALCULATE([Exception Count], supply_chain_exceptions[severity] = "Critical")
